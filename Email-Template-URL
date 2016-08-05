@@ -1,0 +1,11 @@
+$date = Get-Date -Format MM/dd/yyyy
+$time = Get-Date -Format hh00
+$url = New-Object -ComObject outlook.application
+$mail = $url.CreateItem(0)
+$mail.To = "email"
+$mail.CC = "email"
+$mail.BCC = "email"
+$mail.subject = "URL Check - $time - $date"
+$mail.body = "Hello World, This Is A Test"
+$mail.Display()
+Read-Host -Prompt "Press enter to close"
