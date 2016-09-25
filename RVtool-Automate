@@ -1,0 +1,5 @@
+& '.\Program Files (x86)\Robware\RVtools\RVtools.exe' -passthroughauth -s $vCenter -u $user -p $password -c ExportAll2xls -d $filepath -f $filename
+
+start-sleep -s 60
+
+rename-item "$filepath\$filename" "rvtools_$(get-date -displayhint datetime -f yyyy-MM-dd_HHmm).xls"
