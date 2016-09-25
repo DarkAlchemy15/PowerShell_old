@@ -1,0 +1,189 @@
+
+#If you are getting an error that says you arn't allowed to run scripts
+#then you need to set-executionplicy to remotesigned or unrestritced
+#EX: C:\> set-executionplicy -RemoteSigned
+
+
+
+
+write-host -foregroundcolor green "
+######################################
+#                                    #
+#  This Script will Start/Stop SSH,  #
+#  Disable/Enable Lockdown mode for  #
+#  all host in vCenter.              #
+#                                    #
+######################################
+"
+
+$null = read-host -prompt "Please press enter to continue or Ctrl+C to quit."
+
+
+##### Seting Functions #####
+
+#This function will 
+function startssh-dislock {
+
+#Sets Varible to look at all vm hosts
+$vmhost = Get-VMHost
+
+#Disables Lockdown mode
+foreach ($ESXHost in $vmhost) {(get-vmhost $ESXhost | get-view).ExitLockdownMode()}
+
+#Starts SSH on each host
+Get-VMHostService -VMHost $vmhost | Where-Object {$_.Key -eq "TSM-SSH"} | Start-VMHostService -Confirm:$false  
+
+#Sets ssh to never time out.
+Get-VMHost | Get-AdvancedSetting -Name 'UserVars.ESXiShellTimeout' | Set-AdvancedSetting -value "0" -Confirm:$false
+
+}
+
+function stopssh-enlock {
+
+#Sets Varible to look at all vm hosts
+$vmhost = Get-VMHost
+
+#Puts each host in lockdown mode
+foreach ($ESXHost in $vmhost) {(get-vmhost $ESXhost | get-view).EnterLockdownMode()}
+
+#Stop SSH service for each host
+Get-VMHostService -VMHost $vmhost | Where-Object {$_.Key -eq "TSM-SSH"} | Stop-VMHostService -Confirm:$false
+
+#set the SSH timeout to 15min
+Get-VMHost | Get-AdvancedSetting -Name 'UserVars.ESXiShellTimeout' | Set-AdvancedSetting -value "900" -Confirm:$false
+
+}
+
+function enablelock {
+
+#Sets Varible to look at all vm hosts
+$vmhost = Get-VMHost
+
+#Puts each host in lockdown mode
+foreach ($ESXHost in $vmhost) {(get-vmhost $ESXhost | get-view).EnterLockdownMode()}
+
+}
+
+function disablelock {
+
+#Sets Varible to look at all vm hosts
+$vmhost = Get-VMHost
+
+#Disables Lockdown mode
+foreach ($ESXHost in $vmhost) {(get-vmhost $ESXhost | get-view).ExitLockdownMode()}
+
+}
+
+function startssh {
+
+#Sets Varible to look at all vm hosts
+$vmhost = Get-VMHost
+
+#Starts SSH on each host
+Get-VMHostService -VMHost $vmhost | Where-Object {$_.Key -eq "TSM-SSH"} | Start-VMHostService -Confirm:$false  
+
+#Sets ssh to never time out.
+Get-VMHost | Get-AdvancedSetting -Name 'UserVars.ESXiShellTimeout' | Set-AdvancedSetting -value "0" -Confirm:$false
+
+}
+
+function stopssh {
+
+#Sets Varible to look at all vm hosts
+$vmhost = Get-VMHost
+
+#Stop SSH service for each host
+Get-VMHostService -VMHost $vmhost | Where-Object {$_.Key -eq "TSM-SSH"} | Stop-VMHostService -Confirm:$false
+
+#set the SSH timeout to 15min
+Get-VMHost | Get-AdvancedSetting -Name 'UserVars.ESXiShellTimeout' | Set-AdvancedSetting -value "900" -Confirm:$false
+
+}
+
+##### Begining of script ####
+
+#while ($true) {
+	write-host "`n Please select a vCenter"
+	write-host "
+		1) vcenter1
+		2) vcenter2
+		"
+	$vCenterNum = read-host -prompt "Choose a number "
+	
+	switch ($vCenterNum) {
+		1 {$vCenter = "vCenter1.local"}
+		2 {$vCenter = "vCenter2.local"}
+		default {write-host 'Please Try again'}
+	}
+	
+	
+	write-host "`n Would You like Start/Stop SSH, Enable/Disable Lockdown mode"
+	write-host "
+		1) Start SSH, and Disable Lockdown mode
+		2) Stop SSH, and Enable Lockdown mode
+		3) Only Start SSH
+		4) Only Stop SSH
+		5) Only Disable Lockdown Mode
+		6) Only Enable Lockdown Mode
+		"
+	$StartStopInput = read-host -prompt 'Please choose a number'
+	switch ($StartStopInput) {
+		1 {$StartStop = "startssh-dislock"}
+		2 {$startStop = "stopssh-enlock"}
+		3 {$startStop = "startssh-only"}
+		4 {$startStop = "stopssh-only"}
+		5 {$startStop = "dislock-only"}
+		6 {$startStop = "enlock-only"}
+	}
+
+	#Connecting to vCenter
+	connect-viserver -server $vCenter
+
+#1	startssh-dislock; startssh-dislock
+	if ( $startStop -eq "startssh-dislock"){
+		write-host -foregroundcolor green "`n`nStarting SSH, and Disabling lockdown mode for all host in $vCenter" 
+		$nul = read-host -prompt "Press enter to continue or Control+C to quit..."
+		startssh-dislock
+		
+	}
+
+#2	stopssh-enlock; stopssh-enlock
+	if ($startStop -eq "stopssh-enlock") {
+		write-host -foregroundcolor green "`n`nStoping SSH, and Enabling Lockdown mode for all host in $vCenter"
+		$nul = read-host -prompt "Press enter to continue or Control+C to quit..."
+		stopssh-enlock
+	}
+
+#3  startssh-only ;startssh
+if ($startStop -eq "startssh-only") {
+		write-host -foregroundcolor green "`n`nStarting SSH for All host in $vCenter"
+		$nul = read-host -prompt "Press enter to continue or Control+C to quit..."
+		startssh
+	}
+
+#4	stopssh-only; stopssh
+	if ($startStop -eq "stopssh-only") {
+		write-host -foregroundcolor green "`n`nStoping SSH, for all host in $vCenter"
+		$nul = read-host -prompt "Press enter to continue or Control+C to quit..."
+		stopssh
+	}
+	
+#5	dislock-only; disablelock
+	if ($startStop -eq "dislock-only") {
+		write-host -foregroundcolor green "`n`nDisabling Lockdown mode for all host in $vCenter"
+		$nul = read-host -prompt "Press enter to continue or Control+C to quit..."
+		disablelock
+	}
+	
+#6	enlock-only; enablelock
+	if ($startStop -eq "enlock-only") {
+		write-host -foregroundcolor green "`n`nEnabling Lockdown Mode for all host in $vCenter"
+		$nul = read-host -prompt "Press enter to continue or Control+C to quit..."
+		enablelock
+	}
+	
+	#Disconects from vCenter
+	Disconnect-VIServer -server $vCenter -Confirm:$false
+
+
+#}
