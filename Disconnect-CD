@@ -1,0 +1,1 @@
+$VMs = Get-VM $CDConnected = Get-CDDrive $VMs | where { ($_.ConnectionState.Connected -eq "true") -and ($_.ISOPath -notlike "*.ISO*")} If ($CDConnected -ne $null) {Set-CDDrive -connected 0 -StartConnected 0 $CDConnected -Confirm:$false }
