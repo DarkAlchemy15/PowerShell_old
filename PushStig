@@ -1,0 +1,19 @@
+#This Script will lockdown VMs and make them alittle more secure
+
+$stig_list = import-csv 'C:\test\stig_list.txt' -Header Name,Value
+$vm = "TestVM"
+$output = "C:\test"
+
+#Apply to just one VM.
+foreach ($line in $stig_list) {
+New-AdvanceSetting -Entity $vm -Name ($line.Name) -value ($line.value) -force -confirm:$false | Select Entity, Name, Value
+}
+
+#Apply to every VM
+<#
+foreach ($line in $stig_list) {
+Get-VM | New-AdvanceSetting -Name ($line.name) -value ($line.value) -Force -confirm:$false | Select Entity, Name, Value | Export-csv "C:\test\stig_output.csv"
+}
+#>
+
+
