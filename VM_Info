@@ -1,0 +1,11 @@
+# This will get IPs, Network infor, cpu, RAM, HDD of vms in vmlist.txt
+
+$vmlist = import-csv 'C:\scripts\vmlist.txt' -header name
+
+foreach ($line in $vmlist) {
+get-vm $line.name | select name,@{N="IP Address ";E={ [string]::join(";  ",($_.guest.IPAddress))}}, @{N="Network";E={[string]::join(";  ",($_.networkadapters.networkname))}}, numcpu, MemoryGB, @{n="Hard Disk"; e={[string]::join(";  ",($_.harddisks.CapacityGB))}} | export-csv -Append "C:\scripts\vminfo-output.csv" -notype
+}
+
+echo "
+Completed 
+"
