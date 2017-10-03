@@ -1,0 +1,128 @@
+##############################################################
+#####                                                    #####
+#####  CLI Commands for ESXi and PowerCLI/ General Notes #####
+#####                                                    #####
+##############################################################
+
+#To restart All the services on the Host
+services.sh restart
+
+#To restart a specific service on a Host
+services.sh restart [service name]
+
+#To list the IP address on the host
+esxcli network ip interface ipv4 get
+
+#To list all VMs on a host, and status
+vm-support -V
+
+
+#This will grab all the hostnames, and DNS addresses for the host in sscpac and export them to a csv file.
+Connect-VIServer -server vCenter
+Get-VMHost | Get-VMHostNetwork | select HostName, @{Name='DnsAddress' ;Expression={ [string]::join("; ",($_.DnsAddress))}} | Export-csv "C:\Scripts\host-dns.csv"
+
+
+#This will grab all the hostnames, Search Domains, and DNS addresses for the hosts in sscpac and export them to a csv file.
+Get-VMHost | Get-VMHostNetwork | select HostName, @{Name='SearchDomain' ;Expression={ [string]::join("; ",($_.SearchDomain))}}, @{Name='DnsAddress' ;Expression={ [string]::join("; ",($_.DnsAddress))}} | Sort-Object hostname | Export-csv "C:\Scripts\host-dns.csv"
+
+#This will list all the IPs for each ESXi Host.
+Get-VMHost | Get-VMHostNetworkAdapter -VMKernel | select VMHost, name, ip, subnetmask | sort-object vmhost
+
+#Gets the WWN numbers for each Host's HBA
+Get-VMHost | Get-VMHostHba -Type FibreChannel | select vmhost, device, @{n="WWN"; e={"{0:X}" -f $_.portworldwidename}} | sort vmhost, device | Export-Csv "C:\scripts-local\vmhost-wwn.csv" -NoTypeInformation
+
+#List all the VMs with snapshots, in order from Largest to smallest.
+Get-VM | Get-Snapshot | select VM, Name, Created, SizeGB | Sort-Object -Descending SizeGB |  Format-Table -AutoSize
+
+
+#Checkes all VM's in enviroment and unmounts any ISO's connected.
+Get-VM | Get-CDDrive | Set-CDDrive -NoMedia -Confirm:$false
+
+# Rescans VMFs and HBA for all host in enviroment
+get-vmhost | Get-VMHostStorage -RescanVmfs -RescanAllHBA
+
+
+# List all VMs in the enviroment, and display any CDDrives connected. (This will take along time to run)
+$vmlist = Get-VM
+foreach ($VM in $vmlist) {
+Get-vm $vm | Get-CDDrive  | select @{name="VM"; e={$vm.name}},isopath | Export-Csv -Path "C:\scripts-local\VM_List_With_CDs.csv"
+}
+#See above 2 ways todo the same thing.
+foreach ($VM in Get-VM ) {
+Get-VM $VM | Get-CDDrive  | select @{name="VM"; e={$vm.name}},isopath |Format-Table -AutoSize
+}
+
+#List the AdvancedSettings for VMs and exports it to a CSV file. 
+Get-AdvancedSetting -Entity VM_1 | select Entity, Name, Value | Export-Csv "C:\scripts\VM_stig.csv"
+
+
+#Point vmtools folder to datastore
+cd  #Takes you to the root directory
+ls -la #Verify the the store link is there and test to see if its broken
+rm store #This deletes the old link
+ln -s /vmfs/volumes/123456789qwertyuiop store  #This Creates a new link
+
+
+#Start/Stop VMhost Service for a single host. If you want to do it across the board add "Get-VMhost |" in front and remove "-VMHost esxi-01.strawhats.local".
+#DCUI - allows you to log on with a crash cart or through the iLO
+#TSM-SSH - Allows SSH to host
+Get-VMHostService -VMHost esxi-01.strawhats.local | Where-Object {$_.key -eq "DCUI"} | Start-VMHostService
+Get-VMHostService -VMHost esxi-01.strawhats.local | Where-Object {$_.key -eq "DCUI"} | Stop-VMHostService
+
+
+#List MAC for each VM
+$vmlist = get-vm
+foreach ( $vm in $vmlist ) {
+get-vm $vm | Get-NetworkAdapter | select @{N="VM"; e={$vm.name}}, name,NetworkName, MacAddress
+}
+
+#Linux Command to re-read a partion table after expanding
+echo 1 > /sys/block/sdX/device/rescan
+
+#Add extensions to filenames
+Get-ChildItem -Path "C:\scripts\settings" | Rename-Item -NewName { $PSItem.Name + ".csv"}
+
+#Change the maxconnections (MKS) value
+get-vm VM-21 | Get-AdvancedSetting -name RemoteDisplay.maxConnections | set-AdvancedSetting -Value 10 -confirm:$false
+
+#OpenSSL - SSL Certs for VMware hosts
+openssl req -new -nodes -out rui.csr -keyout rui-orig.key -config openssl.cfg
+openssl rsa -in rui-orig.key -out rui.key
+
+
+#Grab VM name, IPs, and Networks.
+$vm = "Enter VM"
+get-vm $vm | select name, @{N="IP Address 1";E={@($_.guest.IPAddress[0])}}, @{N="Network 1"; E={@($_.networkadapters.networkname[0])}}, @{N="IP Address 2";E={@($_.guest.IPAddress[1])}}, @{N="Network 2"; E={@($_.networkadapters.networkname[1])}} | sort name | ft
+
+
+#Set VM NICs to migrate.
+get-vm "Enter VM Name" | Get-NetworkAdapter | Set-NetworkAdapter -NetworkName Migrate -confirm:$false
+
+#Sets both NICs to prod/mgmt one line
+get-vm  VM-21 | Get-NetworkAdapter -Name "Network adapter 1" | Set-NetworkAdapter -NetworkName Mgmt -confirm:$false; get-vm VM-31 | Get-NetworkAdapter -Name "Network adapter 2" | Set-NetworkAdapter -NetworkName LAB -confirm:$false
+
+#Gatherers vm inforamtion (vCPU, RAM, Networks, IPs, Harddisks) for VMs in vmlist.txt
+$vmlist = import-csv 'C:\scripts\vmlist.txt' -header name
+foreach ($line in $vmlist) {
+get-vm $line.name | select name,@{N="IP Address ";E={ [string]::join(";  ",($_.guest.IPAddress))}}, @{N="Network";E={[string]::join(";  ",($_.networkadapters.networkname))}}, numcpu, MemoryGB, @{n="Hard Disk"; e={[string]::join(";  ",($_.harddisks.CapacityGB))}} | export-csv -Append 'C:\scripts\vmlist.csv' -notype
+}
+
+
+#show Hidden devices windwos server
+set devmgr_show_nonpresent_devices=1
+
+#Move VM
+get-vm | move-vm -Destination "Put_VMs_Here"
+
+#Set-Annotations
+set-annotation -entity $line.name -CustomAttribute $line.attrib -Value $line.value
+
+ get-vm | Set-Annotation -CustomAttribute "Backup" -Value "No" | select AnnotatedEntity, Name, Value
+
+get-folder Linux_Lab | get-vm | set-annotation -CustomAttribute "Backup" -Value "Yes" | select AnnotatedEntity, Name, Value
+
+##########
+esxcfg-mpath -l | grep "dead"
+
+vmkfstools -D 
+###########
