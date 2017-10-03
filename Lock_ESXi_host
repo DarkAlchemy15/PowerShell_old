@@ -1,0 +1,23 @@
+#lock.ps1
+#This will Enablelockdown mode and turn off ssh for all the ESXi hosts
+#A#n#d#r#e#w##L#o#v#a#t#o#
+
+
+
+#Sets Varible to look at all vm hosts
+$vmhost = Get-VMHost
+
+#Puts each host in lockdown mode
+foreach ($ESXHost in $vmhost) {
+	if ($ESXHost -notlike "MGMT*"){
+		(get-vmhost $ESXhost | get-view).EnterLockdownMode()
+		Write-host "$ESXHost = Lockdown has been enabled"
+	}
+}
+
+
+#Stop SSH service for each host
+Get-VMHostService -VMHost $vmhost | Where-Object {$_.Key -eq "TSM-SSH"} | Stop-VMHostService -Confirm:$false
+
+#set the SSH timeout to 15min
+Get-VMHost | Get-AdvancedSetting -Name 'UserVars.ESXiShellTimeout' | Set-AdvancedSetting -value "900" -Confirm:$false
