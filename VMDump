@@ -1,0 +1,139 @@
+Add-PSSnapin VMware.VimAutomation.Core
+
+### Variables
+$Report = @()
+$VMCount = 1
+
+$VCNames = "vCenter IP","Or FQDN"
+
+
+### Get each VC and connect
+foreach($VCName in $VCNames){
+	### Connect to each Virtual Center in the List
+	Connect-VIServer -Server $VCName
+
+	### Get VM data from all VMs
+	$VMs = Get-VM
+
+	foreach($VM in $VMs){
+		### Get VM Identification Information
+		$Row = New-Object PSObject
+		$Row | Add-Member -Name Name -Value $VM.Name -MemberType NoteProperty
+		$Row | Add-Member -Name Uuid -Value $VM.ExtensionData.Config.Uuid -MemberType NoteProperty
+		$Row | Add-Member -Name OS -Value $VM.ExtensionData.Config.GuestFullName -MemberType NoteProperty
+		$Row | Add-Member -Name PowerState -Value $VM.PowerState -MemberType NoteProperty
+		$Row | Add-Member -Name HostName -Value $VM.Host -MemberType NoteProperty
+
+		### Get VM Custom Attribute information
+		foreach($Attribute in $VM.CustomFields | Where {$_.Key -ne "LAST_BACKUP"}){
+			$Row | Add-Member -Name $Attribute.Key -Value $Attribute.Value -MemberType NoteProperty
+		}
+
+		### Get VM Resource information
+		$Row | Add-Member -Name TotalCPU -Value $VM.NumCpu -MemberType NoteProperty
+		$Row | Add-Member -Name MemSizeGB -Value ($VM.MemoryMB/1024) -MemberType NoteProperty
+
+		### Get VM IP information
+		if ($VMCount -eq 1){
+			$Row | Add-Member -Name "Adapter 1" -Value "" -MemberType NoteProperty
+			$Row | Add-Member -Name "IPAddress 1" -Value "" -MemberType NoteProperty
+			$Row | Add-Member -Name "Adapter 2" -Value "" -MemberType NoteProperty
+			$Row | Add-Member -Name "IPAddress 2" -Value "" -MemberType NoteProperty
+			$Row | Add-Member -Name "Adapter 3" -Value "" -MemberType NoteProperty
+			$Row | Add-Member -Name "IPAddress 3" -Value "" -MemberType NoteProperty
+			$Row | Add-Member -Name "Adapter 4" -Value "" -MemberType NoteProperty
+			$Row | Add-Member -Name "IPAddress 4" -Value "" -MemberType NoteProperty
+		}
+		$NicCount = 1
+
+		foreach ($Adapter in $VM.NetworkAdapters){
+			$AdapterName = "Adapter " + $NicCount
+
+			$Row | Add-Member -Name $AdapterName -Value $Adapter.NetworkName -MemberType NoteProperty -ErrorAction SilentlyContinue
+		
+			foreach ($Nic in $VM.Guest.Nics){
+				if ($Nic.Device.Name -eq $Adapter.Name){
+					$IPName = "IPAddress " + $NicCount
+
+					$VMIpAddress = (($Nic.IPAddress) | where {$_ -notmatch ":"}) -join ","
+
+					$Row | Add-Member -Name $IPName -Value $VMIpAddress -MemberType NoteProperty -ErrorAction SilentlyContinue
+					$VMIpAddress = $null
+				}
+			}
+			$NicCount = $NicCount + 1
+		}
+
+		### Get VM harddisk information
+		$TotalDiskSize = $null
+		foreach($HardDisk in $VM.HardDisks){
+			$TotalDiskSize = ($TotalDiskSize + $HardDisk.CapacityKB/1024/1024)
+		}
+
+		### Get VM Total disk information
+		$Row | Add-Member -Name "TotalDiskSize" -Value ([Math]::Round($TotalDiskSize)) -MemberType NoteProperty
+		$Row | Add-Member -Name "ProvisionedSpaceGB" -Value ([Math]::Round($VM.ProvisionedSpaceGB)) -MemberType NoteProperty
+		$Row | Add-Member -Name "TotalUsedSpaceGB" -Value ([Math]::Round($VM.UsedSpaceGB)) -MemberType NoteProperty
+
+		foreach($HardDisk in $VM.HardDisks){
+			if ($Report[0]){
+				$Report[0] | Add-Member -Name ($HardDisk.Name + " DiskSizeGB") -Value "" -MemberType NoteProperty -ErrorAction SilentlyContinue
+				$Report[0] | Add-Member -Name ($HardDisk.Name + " Format") -Value "" -MemberType NoteProperty -ErrorAction SilentlyContinue
+				$Report[0] | Add-Member -Name ($HardDisk.Name + " LUN") -Value "" -MemberType NoteProperty -ErrorAction SilentlyContinue
+			}
+
+			$Row | Add-Member -Name ($HardDisk.Name + " DiskSizeGB") -Value ([Math]::Round($HardDisk.CapacityKB/1024/1024)) -MemberType NoteProperty
+			$Row | Add-Member -Name ($HardDisk.Name + " Format") -Value $HardDisk.StorageFormat -MemberType NoteProperty
+
+			$LunNumSplit = $HardDisk.Filename.Split("]")
+			$LunNum = $LunNumSplit[0].substring(1)
+			$Row | Add-Member -Name ($HardDisk.Name + " LUN") -Value $LunNum -MemberType NoteProperty
+		}
+
+		### Send Data to Screen
+		$Row
+
+		### Output Report
+		$Report += $Row
+		$VMCount = 2
+
+		### Reset Variables
+		$Adapter = $null
+		$AdapterName = $null
+		$NicCount = $null
+		$Nic = $null
+		$IPName = $null
+		$VMIpAddress = $null
+		$VM = $null
+		$SystemID = $null
+		$SystemABBR = $null
+		$Environment = $null
+		$Billable = $null
+		$CPUcount = $null
+		$MemSizeGB = $null
+		$DiskSize = $null
+		$TotalDiskSize = $null
+		$Row = $null
+	}
+
+	### Clean up
+	Disconnect-VIServer "*" -Confirm:$False
+}
+
+### Export Report to .csv
+$LocalDate = Get-Date -Format "yyyyMMdd"
+$ReportName = ".\" + $LocalDate + "_VM_Dump.csv"
+$Report | Export-Csv $ReportName -noTypeInformation
+
+Send-MailMessage `
+	-From "test@test.com" `
+	-To `
+		"abcd@test.com", `
+		"efgh@test.com", `
+	-Subject "VM Dump" `
+	-Body "Heres a VM Dump." `
+	-Priority High `
+	-SmtpServer smtp.sscpac.oob `
+	-Attachments $ReportName
+
+Write-Host "`nProcess Complete"
