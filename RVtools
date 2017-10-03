@@ -1,0 +1,13 @@
+$username = Read-Host -Prompt "Username"
+$password = Read-Host -Prompt 'Password'
+cls
+
+&'C:\Program Files (x86)\RobWare\RVTools\RVTools.exe' -passthroughauth -s vCenter-1 -u "$username" -p "$password" -c ExportAll2xls -d "\\share\RVToolsHistory" -f "vCenter-1_$(get-date -displayhint datetime -f yyyy-MM-dd_HHmm).xls"
+&'C:\Program Files (x86)\RobWare\RVTools\RVTools.exe' -passthroughauth -s vCenter-2 -u "$username" -p "$password" -c ExportAll2xls -d "\\share\RVToolsHistory" -f "vCenter-2_$(get-date -displayhint datetime -f yyyy-MM-dd_HHmm).xls"
+
+Write-host "Exporting RVtools for SSCPAC and CNLA to Stewie"
+
+$username = "Hello"
+$password = "World"
+echo "$username $password"
+
