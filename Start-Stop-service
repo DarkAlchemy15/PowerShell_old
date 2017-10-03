@@ -1,3 +1,4 @@
+#Created by Andrew Lovato
 
 #If you are getting an error that says you arn't allowed to run scripts
 #then you need to set-executionplicy to remotesigned or unrestritced
@@ -30,11 +31,11 @@ $vmhost = Get-VMHost
 #Disables Lockdown mode
 foreach ($ESXHost in $vmhost) {(get-vmhost $ESXhost | get-view).ExitLockdownMode()}
 
-#Starts SSH on each host
-Get-VMHostService -VMHost $vmhost | Where-Object {$_.Key -eq "TSM-SSH"} | Start-VMHostService -Confirm:$false  
-
 #Sets ssh to never time out.
 Get-VMHost | Get-AdvancedSetting -Name 'UserVars.ESXiShellTimeout' | Set-AdvancedSetting -value "0" -Confirm:$false
+
+#Starts SSH on each host
+Get-VMHostService -VMHost $vmhost | Where-Object {$_.Key -eq "TSM-SSH"} | Start-VMHostService -Confirm:$false  
 
 }
 
@@ -79,11 +80,11 @@ function startssh {
 #Sets Varible to look at all vm hosts
 $vmhost = Get-VMHost
 
-#Starts SSH on each host
-Get-VMHostService -VMHost $vmhost | Where-Object {$_.Key -eq "TSM-SSH"} | Start-VMHostService -Confirm:$false  
-
 #Sets ssh to never time out.
 Get-VMHost | Get-AdvancedSetting -Name 'UserVars.ESXiShellTimeout' | Set-AdvancedSetting -value "0" -Confirm:$false
+
+#Starts SSH on each host
+Get-VMHostService -VMHost $vmhost | Where-Object {$_.Key -eq "TSM-SSH"} | Start-VMHostService -Confirm:$false  
 
 }
 
@@ -92,27 +93,27 @@ function stopssh {
 #Sets Varible to look at all vm hosts
 $vmhost = Get-VMHost
 
-#Stop SSH service for each host
-Get-VMHostService -VMHost $vmhost | Where-Object {$_.Key -eq "TSM-SSH"} | Stop-VMHostService -Confirm:$false
-
 #set the SSH timeout to 15min
 Get-VMHost | Get-AdvancedSetting -Name 'UserVars.ESXiShellTimeout' | Set-AdvancedSetting -value "900" -Confirm:$false
+
+#Stop SSH service for each host
+Get-VMHostService -VMHost $vmhost | Where-Object {$_.Key -eq "TSM-SSH"} | Stop-VMHostService -Confirm:$false
 
 }
 
 ##### Begining of script ####
 
-#while ($true) {
+
 	write-host "`n Please select a vCenter"
 	write-host "
-		1) vcenter1
-		2) vcenter2
+		1) vCenter 1
+		2) vCenter 2
 		"
 	$vCenterNum = read-host -prompt "Choose a number "
 	
 	switch ($vCenterNum) {
-		1 {$vCenter = "vCenter1.local"}
-		2 {$vCenter = "vCenter2.local"}
+		1 {$vCenter = @("vCenter-1", "vCenter-2"); }
+		2 {$vCenter = "vCenter-2"}
 		default {write-host 'Please Try again'}
 	}
 	
@@ -182,8 +183,6 @@ if ($startStop -eq "startssh-only") {
 		enablelock
 	}
 	
-	#Disconects from vCenter
-	Disconnect-VIServer -server $vCenter -Confirm:$false
+#Disconects from vCenter
+Disconnect-VIServer -server $vCenter -Confirm:$false
 
-
-#}
