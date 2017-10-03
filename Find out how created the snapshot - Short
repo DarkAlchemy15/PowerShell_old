@@ -1,0 +1,45 @@
+#  
+# Please use the below variables to define your settings before use  
+#
+
+Add-PSsnapin VMware.VimAutomation.Core
+
+$VISRV = "vCenter IP"
+$report = @()
+
+Connect-VIServer $VISRV
+
+foreach ($snap in (Get-VM | Get-Snapshot )){
+	$Row = New-Object PSObject
+	$Row | Add-Member -Name VCName -Value $VISRV -MemberType NoteProperty
+	$Row | Add-Member -Name VMName -Value $snap.vm -MemberType NoteProperty
+	$Row | Add-Member -Name SnapShotName -Value $snap.name -MemberType NoteProperty
+	$Row | Add-Member -Name SnapShotCreated -Value $snap.Created -MemberType NoteProperty
+	$Row | Add-Member -Name SnapShotSizeMB -Value $Snap.SizeMB -MemberType NoteProperty
+		
+	### Output Report
+	$Report += $Row
+
+	### Send Data to Screen
+	Write-Host $Row
+
+	$Snap = $null
+}
+
+### Export Report to .csv
+$LocalDate = Get-Date -Format "yyyyMMdd"
+$ReportName = "C:\PowerShell\PowerShell Scripts\Snapshots\SnapCondInfo_" + $LocalDate + ".csv"
+$Report | Export-Csv $ReportName -noTypeInformation
+
+Send-MailMessage `
+	-From "Hello_World@test.com" `
+	-To `
+		"Hello_World@test.com", `
+		"World_Hello@test.com", `
+	-Subject "Vmware Snapshots" `
+	-Body "Here is the snapshot report." `
+	-Priority High `
+	-SmtpServer smtp.test.local `
+	-Attachments $ReportName
+
+Write-Host "Process Complete"
