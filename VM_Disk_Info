@@ -1,0 +1,98 @@
+Add-PSSnapin VMware.VimAutomation.Core
+
+### Variables
+$Report = @()
+
+$VCNames = "vCenter IP","FQDN"
+
+### Get each VC and connect
+foreach($VCName in $VCNames){
+	### Connect to each Virtual Center in the List
+	Connect-VIServer -Server $VCName
+
+	### Get VM data for all VMs
+	$VMs = Get-VM
+	
+
+	### Get Data for each VM
+	foreach($VM in $VMs){
+		### Create each Row and get VM Information
+		$Row = New-Object PSObject
+		$Row | Add-Member -Name Name -Value $VM.Name -MemberType NoteProperty
+		$Row | Add-Member -Name OS -Value $VM.Guest.OSFullName -MemberType NoteProperty
+		$Row | Add-Member -Name Uuid -Value $VM.ExtensionData.Config.Uuid -MemberType NoteProperty
+		$Row | Add-Member -Name PowerState -Value $VM.PowerState -MemberType NoteProperty
+
+		### Get VM Custom Attribute information
+		foreach($Attribute in $VM.CustomFields | Where {$_.Key -ne "LAST_BACKUP"}){
+			$Row | Add-Member -Name $Attribute.Key -Value $Attribute.Value -MemberType NoteProperty
+		}
+
+		### Get VM CPU & RAM
+		$Row | Add-Member -Name TotalCPU -Value $VM.NumCpu -MemberType NoteProperty
+		$Row | Add-Member -Name MemSizeGB -Value ($VM.MemoryMB/1024) -MemberType NoteProperty
+
+		### Get VM harddisk information
+		$TotalDiskSize = $null
+		foreach($HardDisk in $VM.Guest.Disks){
+			$TotalDiskSize = ($TotalDiskSize + ([Math]::Round($HardDisk.Capacity/1024/1024/1024)))
+		}
+
+		### Get VM Total disk information
+		$Row | Add-Member -Name "TotalDiskSize" -Value ([Math]::Round($TotalDiskSize)) -MemberType NoteProperty
+		$Row | Add-Member -Name "ProvisionedSpaceGB" -Value ([Math]::Round($VM.ProvisionedSpaceGB)) -MemberType NoteProperty
+		$Row | Add-Member -Name "TotalUsedSpaceGB" -Value ([Math]::Round($VM.UsedSpaceGB)) -MemberType NoteProperty
+
+		$HardDisk = $null
+		$DiskCount = 1
+
+		$HardDisks = $VM.Guest.Disks | Sort-Object -Property Path
+
+		foreach($HardDisk in $HardDisks){
+			if ($DiskCount -ne 1){
+				$Report[0] | Add-Member -Name "Disk$($DiskCount)Path" -Value "" -MemberType NoteProperty -ErrorAction SilentlyContinue
+				$Report[0] | Add-Member -Name "Disk$($DiskCount)Capacity(GB)" -Value "" -MemberType NoteProperty -ErrorAction SilentlyContinue
+				$Report[0] | Add-Member -Name "Disk$($DiskCount)FreeSpace(GB)" -Value "" -MemberType NoteProperty -ErrorAction SilentlyContinue
+			}
+
+			$Row | Add-Member -Name "Disk$($DiskCount)Path" -Value $HardDisk.Path -MemberType NoteProperty
+			$Row | Add-Member -Name "Disk$($DiskCount)Capacity(GB)" -Value ([Math]::Round($HardDisk.Capacity/1024MB)) -MemberType NoteProperty
+			$Row | Add-Member -Name "Disk$($DiskCount)FreeSpace(GB)" -Value ([Math]::Round($HardDisk.FreeSpace/1024MB)) -MemberType NoteProperty
+			$DiskCount++
+		}
+
+		### Send Data to Screen
+		$Row
+
+		### Output Report
+		$Report += $Row
+
+		### Reset Variables
+		$VM = $null
+		$TotalDiskSize = $null
+		$Row = $null
+		$VMView = $null
+		$HardDisk = $null
+	}
+
+	### Clean up
+	Disconnect-VIServer "*" -Confirm:$False
+}
+
+### Export Report to .csv
+$LocalDate = Get-Date -Format "yyyyMMdd"
+$ReportName = ".\" + $LocalDate + "_VM_Disk_Info.csv"
+$Report | Export-Csv $ReportName -noTypeInformation
+
+Send-MailMessage `
+	-From "Hello_World@test.com" `
+	-To `
+		"Hellow_World@test.com", `
+		"World_Hello@test.com", `
+	-Subject "VM Disk Report" `
+	-Body "Here is the VM Disk report." `
+	-Priority High `
+	-SmtpServer smtp.test.local `
+	-Attachments $ReportName
+
+Write-Host "`nProcess Complete"
