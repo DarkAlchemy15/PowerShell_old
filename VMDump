@@ -133,7 +133,7 @@ Send-MailMessage `
 	-Subject "VM Dump" `
 	-Body "Heres a VM Dump." `
 	-Priority High `
-	-SmtpServer smtp.sscpac.oob `
+	-SmtpServer smtp.test.local `
 	-Attachments $ReportName
 
 Write-Host "`nProcess Complete"
