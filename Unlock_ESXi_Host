@@ -1,0 +1,17 @@
+#########
+### Unlock
+#Starts SSH and disables Lockdown mode
+#A#n#d#r#e#w##L#o#v#a#t#o#
+
+
+$vmhost = Get-VMHost
+
+#Disables Lockdown mode
+foreach ($ESXHost in $vmhost) {(get-vmhost $ESXhost | get-view).ExitLockdownMode()}
+
+#Sets ssh to never time out.
+Get-VMHost | Get-AdvancedSetting -Name 'UserVars.ESXiShellTimeout' | Set-AdvancedSetting -value "0" -Confirm:$false
+
+#Starts SSH on each host
+Get-VMHostService -VMHost $vmhost | Where-Object {$_.Key -eq "TSM-SSH"} | Start-VMHostService -Confirm:$false  
+
