@@ -1,0 +1,11 @@
+#SecureVM
+
+
+#Connect-VIServer vCenter-1.local
+
+$stig_vm = Import-Csv 'C:\scripts\stig_vm.txt' -Header Name,Value
+$vms = Get-vm
+$output = C:\scripts\stig_vm_fin.txt
+foreach ($line in $vms) {
+Get-VM $line | New-AdvancedSetting -Name ($stig_vm.Name) -value ($stig_vm.value) -Force -Confirm:$false | Select Entity, Name, Value | Export-Csv $output
+}
