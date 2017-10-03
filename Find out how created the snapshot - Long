@@ -1,0 +1,122 @@
+#  
+# Please use the below variables to define your settings before use  
+#
+
+Import-Module ActiveDirectory
+Add-PSsnapin VMware.VimAutomation.Core
+
+$VISRV = "vCenter IP"
+$report = @()
+
+#Region Get-SnapshotTree
+
+function Get-SnapshotTree{
+	param($tree, $target)
+	$found = $null
+
+	foreach($elem in $tree){
+		if($elem.Snapshot.Value -eq $target.Value){
+			$found = $elem
+			continue
+		}
+	}
+
+	if($found -eq $null -and $elem.ChildSnapshotList -ne $null){
+		$found = Get-SnapshotTree $elem.ChildSnapshotList $target
+	}
+
+	return $found
+}
+#EndRegion Get-SnapshotTree
+
+#Region Find-User
+
+function Find-User ($username){  
+	if ($username -ne $null)  
+	{  
+		$usr = (($username.split("\"))[1])  
+		$root = [ADSI]"" 
+		$filter = ("(&(objectCategory=user)(samAccountName=$Usr))")  
+		$ds = new-object system.DirectoryServices.DirectorySearcher($root,$filter)  
+		$ds.PageSize = 1000  
+		$ds.FindOne()  
+	}  
+}  
+#EndRegion Find-User
+
+Connect-VIServer $VISRV
+
+foreach ($snap in (Get-VM | Get-Snapshot )){
+	$Row = "" | select VCName, VMName, SnapShotName, SnapShotCreated, SnapShotSizeMB, SnapShotCreator #, SnapShotCreatorEmail
+	$Row.VCName = $VISRV
+	$Row.VMName = $snap.vm
+	$Row.SnapShotName = $snap.name
+	$Row.SnapShotCreated = $snap.Created
+	$Row.SnapShotSizeMB = $Snap.SizeMB
+
+	$guestName = $snap.VM   # The name of the guest
+	$tasknumber = 999       # Windowsize of the Task collector
+	$taskMgr = Get-View TaskManager
+
+	# Create hash table. Each entry is a create snapshot task
+	$filter = New-Object VMware.Vim.TaskFilterSpec
+	$filter.Time = New-Object VMware.Vim.TaskFilterSpecByTime
+	$filter.Time.beginTime = (($snap.Created).AddSeconds(-5))
+	$filter.Time.timeType = "startedTime"
+	$collectionImpl = Get-View ($taskMgr.CreateCollectorForTasks($filter))
+	$dummy = $collectionImpl.RewindCollector
+	$collection = $collectionImpl.ReadNextTasks($tasknumber)
+
+	while($collection -ne $null){
+		$FilteredCollection = $collection | where {$_.DescriptionId -eq "VirtualMachine.createSnapshot" -and $_.State -eq "success" -and $_.EntityName -eq $guestName}
+
+		foreach($Item in $FilteredCollection)
+		{
+			if($Item -ne $null){
+				$vm = Get-View $Item.Entity
+				$snapshot = Get-SnapshotTree $vm.Snapshot.RootSnapshotList $Item.Result
+
+				if($snapshot -ne $null){
+					$SnapCreator = $Item.Reason.UserName
+#					$CreatorEmail = ((Find-User $SnapCreator).Properties.mail)
+
+					$Row.SnapShotCreator = $SnapCreator
+#					$Row.SnapShotCreatorEmail = $CreatorEmail[0]
+				}
+			}
+
+			$SnapCreator = $null
+			$snapshot = $null
+		}
+
+		$collection = $collectionImpl.ReadNextTasks($tasknumber)
+	}
+
+	$collectionImpl.DestroyCollector()
+
+	### Output Report
+	$Report += $Row
+
+	### Send Data to Screen
+	Write-Host $Row
+
+	$Snap = $null
+}
+
+### Export Report to .csv
+$LocalDate = Get-Date -Format "yyyyMMdd"
+$ReportName = ".\SnapInfo_" + $LocalDate + ".csv"
+$Report | Export-Csv $ReportName -noTypeInformation
+
+Send-MailMessage `
+	-From "hello_world@test.com" `
+	-To `
+		"hello_world@test.com",`
+		"World_hello@test.com",`
+	-Subject "Vmware Snapshots Long search" `
+	-Body "Here is the snapshot report." `
+	-Priority High `
+	-SmtpServer smtp.test.local `
+	-Attachments $ReportName
+
+Write-Host "Process Complete"
