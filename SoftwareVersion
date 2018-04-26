@@ -1,0 +1,6 @@
+$ServerList = import-csv 'C:\Temp\list.txt' -header name
+
+foreach ($line in $ServerList) {
+Invoke-Command -cn $line.name -scriptblock {Get-ItemProperty HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\* | Select-Object DisplayName, DisplayVersion, Publisher, InstallDate}
+
+}
