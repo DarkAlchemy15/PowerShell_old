@@ -1,6 +1,20 @@
-$ServerList = import-csv 'C:\Temp\list.txt' -header name
+#This script will take a list of servers and gather information about installed software.
+#List all servers you want to check, only 1 per line
+$ServerList = import-csv 'C:\Temp\list.txt' -Header name
 
 foreach ($line in $ServerList) {
-Invoke-Command -cn $line.name -scriptblock {Get-ItemProperty HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\* | Select-Object DisplayName, DisplayVersion, Publisher, InstallDate}
+    
+    #Filename and location, Switch between 1 file for ever server, or 1 file per server by uncomenting/comenting the #filename below
+    $filename = "C:\Temp\$($line.name).csv" #Separate files for each server
+    #$filename = "C:\Temp\Software List.csv"  #1 file with everything
 
+    Invoke-Command -cn $line.name -scriptblock {
+        #Below are the 2 places its going to check the software. Only checks for software that is installed for all users, not individuals
+        $HKLM = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*','HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
+        
+        #List the software you want to check for. If you want to get all sofware installed just add '|' to the end. You don't need the full name of the software.
+        $Software = "ActivC|axway|java|emet|McAfee Agent"
+        
+        #Its set up to get the Software name, Version, Install date, and PCname and export it to a file for each PC.
+        Get-ItemProperty $HKLM | Where {($_.DisplayName -match "$software" )} | sort displayname}| select -Property DisplayName, DisplayVersion, InstallDate, PSComputerName -ExcludeProperty RunspaceId | export-csv -Append $filename -noty
 }
