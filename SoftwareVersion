@@ -4,7 +4,9 @@
 # 2) Edit the $filename varible to reflect the save location you want.
 
 #List all servers you want to check, only 1 per line
-$ServerList = import-csv 'C:\Temp\list.txt' -Header name
+#$ServerList = import-csv 'C:\Temp\list.txt' -Header name
+
+$ServerList = Get-ADComputer -filter * -properties * -SearchBase "OU=Serves, DC=Test, DC=local" | select Name
 
 foreach ($line in $ServerList) {
     
