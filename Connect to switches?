@@ -1,7 +1,10 @@
+#Create a TXT file with a list of switches, only 1 per line
 $Switch_list = import-csv "C:\temp\Switch_List.txt" -header name
+
 
 Foreach ($line in $Switch_list){
     
+    #This should SSH to the switch and run whatever is in scriptblock{....} 
     Invoke-Command -Hostname $line.name -Username BillyBob -ScriptBlock {
         #Enter switch commands here??? or Linux commands
     
