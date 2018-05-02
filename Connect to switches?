@@ -1,0 +1,10 @@
+$Switch_list = import-csv "C:\temp\Switch_List.txt" -header name
+
+Foreach ($line in $Switch_list){
+    
+    Invoke-Command -Hostname $line.name -Username BillyBob -ScriptBlock {
+        #Enter switch commands here??? or Linux commands
+    
+    }
+    
+}
