@@ -1,0 +1,23 @@
+#Get-FileMetaData - is a function that you have to download from technet or Its somewhere on my list of PS scripts
+
+#Notes from tests
+#Get-FileMetaData -folder "C:\temp\pic" | select name, Dimensions, width | sort width  #Move-Item -Destination "C:\temp\pic\small_pic\" where {( $_.width -ge "512")}
+
+
+#Set the folder you want to sort though
+$Var = Get-FileMetaData -folder "C:\temp\pic" 
+
+Foreach ($pic in $var) {
+    #Tests to see if folder exists
+    if (Test-Path C:\temp\done\$($pic.dimensions) ) {
+        #Write-host "`n`nFolder "$pic.dimensions" Exist `n`n"
+    }
+    Else{
+        #If it doesn't exist it creates the folder
+        new-item -path "C:\temp\done\" -name "$($pic.dimensions)" -ItemType "directory" | out-null
+        write-host "`n`nFolder "$pic.dimensions" has been created `n`n"
+    }
+    #Moves Pictures to proper folders
+    #Write-host "`n "$pic.name" has been moved"
+    move-item -Path "C:\temp\pic\$($pic.name)" -Destination "C:\temp\done\$($pic.dimensions)"
+}
