@@ -1,4 +1,5 @@
 #Get-FileMetaData - is a function that you have to download from technet or Its somewhere on my list of PS scripts
+#https://gallery.technet.microsoft.com/scriptcenter/get-file-meta-data-function-f9e8d804
 
 #Notes from tests
 #Get-FileMetaData -folder "C:\temp\pic" | select name, Dimensions, width | sort width  #Move-Item -Destination "C:\temp\pic\small_pic\" where {( $_.width -ge "512")}
