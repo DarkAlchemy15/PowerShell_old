@@ -1,0 +1,31 @@
+#This script is for the RDP Workaround, to allow admins to RDP to the server
+# HKLM:\SYSTEM\CurrentControlSet\Control\Lsa -name "DisableRestrictedAdmin" -Value 0
+#Here is Kirby Because I can
+#(>'-')> <('-'<) ^('-')^ v('-')v
+    ##### Varibles #####
+#List all servers you want to check, only 1 per line
+$ServerList = import-csv 'C:\Temp\list.txt' -Header name
+
+#Pull Servers a specified OU in Active Directory
+#$ServerList = Get-ADComputer -filter * -properties * -SearchBase "OU=PC, OU=Admins, DC=Trashpanda, DC=com" | select Name
+
+#Any errors will be exported to the location below
+$error_log = "C:\temp\Errors_Andrew.txt"
+
+#Filename and location of which servers have recieved the fix
+$filename = "C:\Temp\Fix_Applied_to_Andrew.txt"
+
+    ##### Script ##### (>'-')> <('-'<) ^('-')^ v('-')v
+foreach ($line in $ServerList) {
+    #Lets you know which Server it's trying to connect to.
+    Write-host "`nConnecting to $($line.name)"
+    #This If Statement is to check that the Invoke-command was executed properly. The if($?) {$true}} at the end is to make
+    #    the Set-property command to True if it succeds, basicly replacing && like in BASH. If it is successfull it will add 
+    #    the servername to the "success" output file, If not there should be a log of why in the Error_Log file
+    #    ^('-')^
+    if (Invoke-Command -cn $line.name 2>> "$error_log" -scriptblock {Set-ItemProperty -path "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\" -name "DisableRestrictedAdmin" -Value 0; if($?) {$true}}){
+        Write-output "Fix applied to `"$($line.name)`"" | Tee-Object -Append $filename
+    } Else{
+        Write-host "Could not connect to `"$($line.name)`". check Error log $error_log`n" -ForegroundColor red
+    }
+}
