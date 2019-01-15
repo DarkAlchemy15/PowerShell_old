@@ -1,0 +1,15 @@
+#Connect-viserver -server 10.0.1.24
+
+#NOTE......
+$stig = Import-csv 'C:\scripts\stig_vm.txt' -Header name, value
+
+$vm_all = Get-vm
+
+$out = C:\scripts\stig_vm_fin.txt
+
+foreach ($vm in $vm_all) {
+
+    get-vm $vm | New-AdvancedSetting -name ($stig.name) -Value ($stig.value) -Force -Confirm:$false | select Entity, name, Value | export-csv $out
+
+
+}
