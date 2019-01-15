@@ -1,0 +1,62 @@
+#This will Deploy a MoveAV from template using the basic settings
+#It will place one MoveAV on each VMhost
+#You Still need to loginto each MoveAV and configure it
+#
+# Don't do Get-vmhost | new-vm
+# The way above, will Deploy all the VMs at once, and may cause resouce issues, or issues with deploying multiple VMs from the same tempalate at once
+# 
+
+
+<##This Grabs a list an creates a new VM according to the list, and places it on the specified host.
+$move = Import-Csv 'C:\scripts\MoveAV.txt' -Header name,host
+
+foreach ($line in $move) {
+    New-VM -Name $line.name -VMHost $line.host -template "move-sva" -Datastore datastore -Location "MOVE" -DiskStorageFormat thin
+    write-host "$($line.name) has been deployed on $($line.host)"
+}
+
+#>
+
+
+
+######Deploy a McAfee Move AV (Agentless) VM on each ESXi Host in the Enviroment
+
+#Gathers a list of all the ESXi host in the enviroment 
+$vmhost = get-vmhost | select name | sort name
+
+#Selects Datastore with the most Free space
+$ListStorage = Get-Datastore | sort -Descending FreeSpaceGB | select name -first 1
+$datastore = get-datastore $ListStorage.name
+
+#For loop to deploy a McAfee MoveAV to each ESXi host
+foreach ($line in $vmhost) {
+    
+    #Get's the Host name and grabs the last 2 charaters from it 
+    $var1 = $line.name
+    $name = $var1.substring($var1.length -2)
+    #Combines the host number with the VMname 
+    $vmname = "move-$($name)"
+    
+    #Deploy's VM from Template, names its move1, and places it on the coresponding ESXi Host, It then places it in the MOVE Folder
+    New-VM -Name $vmname -VMHost $line.name -template "move" -Datastore $datastore -Location "MOVE" -DiskStorageFormat thin 2>> "$null"
+    
+    #Does the same thing directly above, except, you don't have import OVF file, you can just edit the path and run it from your desktop
+    #Import-VApp -Source '.\Move\move.ovf' -name $vmname -VMHost $line.name -Location "ESX Agents" -DiskStorageFormat thin -Datastore $datastore
+    Start-Sleep -s 10
+    #Does what it says, writes to the screen that VM has been deployed on (X) ESXi Host
+    write-host "$($vmname) has been deployed on $($line.name)"
+    
+}
+
+
+Write-Host "`n`nWaiting for VMs to finish Deploying"
+Start-Sleep -s 30
+
+
+#Waits for the MoveAV VMs finish deploying, and then starts them up 10seconds apart.
+$move = Get-vm moveav* | sort name
+foreach ($line in $move) {
+    start-vm $line.name
+    get-vm $line.name | Open-VMConsoleWindow -confirm:$false
+    Start-Sleep -s 5
+}
