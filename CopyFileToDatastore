@@ -1,0 +1,55 @@
+#Upload File to Datastore using PowerCLI
+#Created by:#
+# <('-'<) ^('-')^ v('-')v (>'-')>
+
+#If the script fails, make sure you are connected to vcenter or an ESXi host, and try again
+
+write-host -ForegroundColor green "`nThe following script is used to upload files to a VMware datastore. Do you want to continue? ([Y]/N)" -NoNewline
+$promt = read-host -p " "
+switch ($promt) {
+    n{exit}
+    N{exit}
+    default {continue}
+}
+
+#Function:
+#Commands to upload file to datastore
+	function upload {
+		$file = read-host -p "Enter the File path: (Example C:\folder1\Logo.bmp)"
+		Copy-DataStoreItem -Item $file -destination data:\uploads\
+		Write-host -ForegroundColor green "`nFile $file has been uploaded to $datastore\uploads\`n"
+	}
+
+
+#Manually Set a Datastore
+    #If you uncomment the line below to set the datastore makesure to comment out the lines below (line 30 and 34 they begin with $ListStorage, and $datastore
+	#$datastore = Get-Datastore "Datastore"
+
+##Automaticly chooses the datastore with the most free space
+	#Gets a list of all datastores and sorts them largest to smallest, and sets the largest one to $ListStorage
+	#Comment out the line below if you manually set the Datastore
+    $ListStorage = Get-Datastore | sort -Descending FreeSpaceGB | select name -first 1
+
+#Grabs datastore from $ListStorage and sets it as a varible
+    #Comment out the line below if you manually set the Datastore
+	$datastore = get-datastore $ListStorage.name
+
+#Creates a New Powershell Drive. VMware KB2001041
+	New-PSDrive -location $datastore -name data -PSProvider VimDatastore -root "\uploads\" | out-null
+
+	Write-host -ForegroundColor Yellow "`nUploading files to $datastore\uploads\"
+
+#Setting the varible var1, so as long as it equals 1 the while loop will continue.
+$var1 = 1
+	While ($var1 -eq 1){
+		#calling function "upload" to upload the file
+		upload
+		
+        write-host -ForegroundColor Yellow "Would you like to upload another file? ([y]/n)" -NoNewline
+		$ans1 = Read-host -p " "
+		switch ($ans1){
+			n {$var1++}
+			N {$var1++}
+			default {continue}
+		}
+	}
