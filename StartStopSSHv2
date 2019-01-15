@@ -1,0 +1,70 @@
+#Created by:#
+# <('-'<) ^('-')^ v('-')v (>'-')>
+
+Write-host -ForegroundColor Green "
+###############################
+#                             #
+# Start/Stop SSH              #
+# Disable/Enable Lockdownmde  #
+#                             #
+###############################
+"
+
+##### Functions #####
+
+#Disable Lockdown mode and Start SSH
+function unlock {
+
+$vmhost = get-vmhost 
+
+#Disable lockdown mode on ESXi host
+foreach ($ESXhost in $vmhost ) {(get-vmhost $ESXhost | get-view).exitlockdownMode()}
+
+#Set ssh to not time out
+Get-vmhost | Get-AdvancedSetting -name 'UserVars.ESXiShellTimeout' | Set-AdvancedSetting -Value "0" -Confirm:$false
+
+#Start ssh on ESXi Host
+Get-VMHost -Name $vmhost | Where-Object {$_.key -eq "TSM-SSH"} | Start-VMHostService -Confirm:$false
+
+}
+
+
+#Enable Lockdown mode and Stop SSH
+function lock {
+
+$vmhost = get-vmhost 
+
+#Disable lockdown mode on ESXi host
+foreach ($ESXhost in $vmhost ) {(get-vmhost $ESXhost | get-view).enterlockdownMode()}
+
+#Set ssh time out to 900 seconds
+Get-vmhost | Get-AdvancedSetting -name 'UserVars.ESXiShellTimeout' | Set-AdvancedSetting -Value "900" -Confirm:$false
+
+#Stop ssh on ESXi Host
+Get-VMHost -Name $vmhost | Where-Object {$_.key -eq "TSM-SSH"} | Stop-VMHostService -Confirm:$false
+
+}
+
+##### Begining of Script #####
+
+Write-host "`nWould you like to Start or Stop SSH please choose below"
+write-host -for Yellow "
+      1) Start SSH and Disable Lockdown mode
+      2) Stop SSH and Enable Lockdown mode
+      "
+
+$var1 = Read-Host -Prompt 'Please Enter a Number (1 or 2)'
+    switch ($var1) {
+        1 {$var1 = "unlock"}
+        2 {$var1 = "lock"}
+    }
+
+if ($var1 -eq "unlock"){
+    Write-Host -ForegroundColor green "Starting SSH and Disabling Lockdown mode"
+    unlock
+}
+
+if ($var1 -eq "lock"){
+    Write-host -ForegroundColor green "Stopping SSH and Enableing Lockdown mode"
+    lock
+}
