@@ -4,7 +4,7 @@
 $ServerList = import-csv 'C:\Temp\list.txt' -Header name
 
 #Pull Servers a specified OU in Active Directory
-#$ServerList = Get-ADComputer -filter * -properties * -SearchBase "OU=Server_2012R2, OU=NON_CCL, OU=Servers, OU=_Equipment, OU=NEC, OU=NETCOM, OU=Irwin, OU=Installations, DC=nasw, DC=ds, DC=army, DC=mil" | select Name
+#$ServerList = Get-ADComputer -filter * -properties * -SearchBase "OU=Servers, OU=SiteA, DC=TestLab, DC=local" | select Name
 
 #Exports any errors to the location below
 $error_list = "C:\temp\Errors.txt"
