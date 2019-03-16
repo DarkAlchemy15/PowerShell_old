@@ -4,6 +4,24 @@ $ou = get-adcomputer -filter * -searchbase "OU=Strawhats, DC=local" | sort name 
 $error_log = "C:\temp\error_log.txt"
 
 foreach ($pc in $ou){
-
-
+  $ServiceTag = get-ciminstance -classname win32_bios -computername $pc.name 2>> "$error_log" | select serialnumber
+  $HHDsn = get-ciminstance -classname win32_physicalmedia -computername $pc.name 2>> "$error_log" | select serialnumber
+  $HHDsize = get-ciminstance -classname win32_logicaldisk -computername $pc.name 2>> "$error_log" | select @{N="SizeGB";E={$_.size/1GB}}
+  $RAM = get-ciminstance -classname win32_phyicalmemory -computername $pc.name 2>> "$error_log" | measure-object -property Capacity -sum | Select @{N=RAM;E{$_.sum/1GB}}
+  
+  $row = New-object psobject
+  $row | add-member -name Hostname -value $pc.name -MemberType NoteProperty
+  $row | add-member -name ServiceTag -value $servicetag.serialnumber -MemberType NoteProperty
+  $row | add-member -name "HHD SN" -value $HHDsn =.serialnumber -MemberType NoteProperty
+  $row | add-member -name "HDD Size" -value $HHDsize.SizeGB -MemberType NoteProperty
+  $row | add-member -name "RAM GB" -value $RAM.RAM -MemberType NoteProperty
+  
+  $row
+  $Report += $row
+  
 }
+
+$Report | Export-csv "C:\temp\Hardware_list.csv"
+
+#wmic bios get serialnumber
+#wmic diskdrive get serialnumber
