@@ -1,0 +1,9 @@
+$Report = @()
+
+$ou = get-adcomputer -filter * -searchbase "OU=Strawhats, DC=local" | sort name | select name
+$error_log = "C:\temp\error_log.txt"
+
+foreach ($pc in $ou){
+
+
+}
