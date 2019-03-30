@@ -1,0 +1,50 @@
+$Report = @()
+
+Function HDD {
+	Get-wmiobject -classname Win32_logicaldisk -computername $pc.name |
+	Where-Object {$_.drivetype -ne 5}
+	sort-object -property name |
+	select-object Name, VolumeName, Filesystem, Description, `
+			@{N="DiskSize(GB)";E={"{0:N}" -f ($_.size)/1GB -as [float]}},`
+			@{N="FreeSpace(GB)";E={"{0:N}" -f ($_.freespace)/1GB -as [float]}},`
+			@{N="% Free";E={"{0:N}" -f ($_.freespace/$_.size*100) -as [float]}}
+
+}
+
+
+
+$ou = get-adcomputer -filter * -searchbase "OU=Strawhats, DC=local" | sort name | select name
+$error_log = "C:\temp\error_log.txt"
+
+foreach ($pc in $ou){
+	If (Test-Connection -computername $pc.name -count 1 -erroraction silently continue){
+		$OS = get-ciminstance -classname win32_Operating system -computername $pc.name 2>> "$error_log" # OS ($_.caption)
+		$sysinfo = get-wimiobject -classname cim_computersystem -computername $pc.name 2>> "$error_log" #grabs Totalphsyical ram, Model, Man.
+		$Ram = $sysinfo.TotalPhsyicalMempry | select @{N="RamGB";E={$_/1GB}} 2>> "$error_log" #Converts annoy ram size to GB
+		
+		
+		<#
+  	$ServiceTag = get-ciminstance -classname win32_bios -computername $pc.name 2>> "$error_log" | select serialnumber
+  	$HHDsn = get-ciminstance -classname win32_physicalmedia -computername $pc.name 2>> "$error_log" | select serialnumber
+  	$HHDsize = get-ciminstance -classname win32_logicaldisk -computername $pc.name 2>> "$error_log" | select @{N="SizeGB";E={$_.size/1GB}}
+  	$RAM = get-ciminstance -classname win32_phyicalmemory -computername $pc.name 2>> "$error_log" | measure-object -property Capacity -sum | Select @{N=RAM;E{$_.sum/1GB}}
+  
+  	$row = New-object psobject
+  	$row | add-member -name Hostname -value $pc.name -MemberType NoteProperty
+  	$row | add-member -name ServiceTag -value $servicetag.serialnumber -MemberType NoteProperty
+  	$row | add-member -name "HHD SN" -value $HHDsn =.serialnumber -MemberType NoteProperty
+  	$row | add-member -name "HDD Size" -value $HHDsize.SizeGB -MemberType NoteProperty
+  	$row | add-member -name "RAM GB" -value ([math]::ceiling($RAM.RamGB)) -MemberType NoteProperty
+  	#>
+  	$row
+  	$Report += $row
+  
+	}Else {
+	
+	}
+}
+
+$Report | Export-csv "C:\temp\Hardware_list.csv"
+
+#wmic bios get serialnumber
+#wmic diskdrive get serialnumber
