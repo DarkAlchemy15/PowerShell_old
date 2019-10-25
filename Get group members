@@ -1,0 +1,6 @@
+$users = get-aduser -Filter * -SearchBase "OU=Users,DC=Contoso,dc=com" | select samaccountname
+
+foreach ($user in $users){
+Get-ADPrincipalGroupMembership $user.samaccountname | select name | export-csv C:\tools\$($user.samaccountname).txt -NoTypeInformation
+
+}
