@@ -1,0 +1,7 @@
+$groups = Get-ADGroup -Filter * -SearchBase "OU=usres,DC=contoso,dc=com" | select name
+
+foreach ($group in $groups ){
+    Get-ADGroupMember $group.name | select name, samaccountname | Out-File "C:\tools\Groups\$($group.name).txt"
+
+    
+}
