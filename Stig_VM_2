@@ -1,15 +1,42 @@
-#Connect-viserver -server 10.0.1.24
-
-#NOTE......
-$stig = Import-csv 'C:\scripts\stig_vm.txt' -Header name, value
-
-$vm_all = Get-vm
-
-$out = C:\scripts\stig_vm_fin.txt
-
-foreach ($vm in $vm_all) {
-
-    get-vm $vm | New-AdvancedSetting -name ($stig.name) -Value ($stig.value) -Force -Confirm:$false | select Entity, name, Value | export-csv $out
-
-
+$vmSTIGS = @{
+    
+	"isolation.tools.diskShrink.disable" = $true
+	"isolation.tools.diskWiper.disable" = $true
+	"isolation.tools.hgfsServerSet.disable" = $true
+	"RemoteDisplay.maxConnections" = 1
+	"RemoteDisplay.vnc.enabled" = $false
+	"isolation.device.connectable.disable" = $true
+	"tools.guestlib.enableHostInfo" = $false
+	"tools.guest.desktop.autolock" = $true
+	"isolation.tools.copy.disable" = $true
+	"isolation.tools.dnd.disable" = $true
+	"isolation.tools.setGUIOptions.enable" = $false
+	"isolation.tools.paste.disable" = $true
+	"isolation.tools.ghi.autologon.disable" = $true
+	"isolation.tools.ghi.launchmenu.change" = $true
+	"isolation.tools.memSchedFakeSampleStats.disable" = $true
+	"isolation.tools.ghi.protocolhandler.info.disable" = $true
+	"isolation.ghi.host.shellAction.disable" = $true
+	"isolation.tools.ghi.trayicon.disable" = $true
+	"isolation.tools.unity.disable" = $true
+	"isolation.tools.unityInterlockOperation.disable" = $true
+	"isolation.tools.unity.push.update.disable" = $true
+	"isolation.tools.unity.taskbar.disable" = $true
+	"isolation.tools.unityActive.disable" = $true
+	"isolation.tools.unity.windowContents.disable" = $true
+	"isolation.tools.vmxDnDVersionGet.disable" = $true
+	"isolation.tools.guestDnDVersionSet.disable" = $true
+	"tools.setinfo.sizeLimit" = 1048576
+	"mks.enable3d" = $false
 }
+
+
+$out = "C:\Tools\STIGS\testing123.txt"
+
+
+foreach ($line in $vmstigs.GetEnumerator()) {
+    
+    get-vm | get-AdvancedSetting -name $($line.Name) | set-AdvancedSetting -Value $($line.Value)  -confirm:$false | select Entity, name, Value | export-csv -Append $out -NoTypeInformation
+             
+}
+
