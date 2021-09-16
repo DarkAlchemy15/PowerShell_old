@@ -1,0 +1,101 @@
+#Import AD module or else this script won't work
+Import-Module ActiveDirectory
+set-location ad:
+
+###Variables
+$Report = @()
+
+#Get Every Org Unit in the domain, and sort it 
+$OUs = Get-ADOrganizationalUnit -Filter * -Properties * | sort CanonicalName
+
+#To list a single Org Unit
+#$OUs = Get-ADOrganizationalUnit -Filter {DistinguishedName -eq "OU=Test,DC=Contoso,DC=local"} -Properties *
+
+foreach ($ou in $OUs){
+   
+    #Get ACL info
+    $acl = get-acl $ou.DistinguishedName
+	#
+    foreach ($access in $acl.access|sort IdentityReference) {
+        #
+		$permissions = [ordered]@{
+            'OU-Name'=$ou.name
+            'OU-CanonicalName'=$ou.CanonicalName
+            'OU-DistinguishedName'=$ou.DistinguishedName
+            'IdentityReference'=$access.IdentityReference
+            'AccessControlType'=$access.AccessControlType
+            'ActiveDirectoryRights'=$access.ActiveDirectoryRights
+            'IsInherited'=$access.IsInherited
+            'InheritanceType'=$access.InheritanceType
+            'InheritanceFlags'=$access.InheritanceFlags
+            #'PropagationFlags'=$access.PropagationFlags
+            #'ObjectFlags'=$access.ObjectFlags
+            #'ObjectType'=$access.ObjectType
+            #'InheritedObjectType'=$access.InheritedObjectType
+
+        }
+        $Report += New-Object psobject -Property $permissions
+    }
+
+} 
+
+#Un-comment if you want to output the data to the screen
+#$Report | ft -au
+
+###export to CSV
+#Testing to see if the Directory Exist, if not it creates it
+If (!(Test-path c:\tools\AD))
+{
+	New-item -ItemType Directory -Force -Path "C:\tools\AD"
+}
+
+#2021-09-16_02:35
+$localdate = get-date -Format "yyyy-MM-dd_HHmm"
+$ReportName = "c:\tools\AD\" + $env:USERDNSDOMAIN + "_ACLs_" + $localdate + ".csv"
+#C:\tools\AD\Domain_name_ACLs_2021-09-16_0252.csv
+$Report | export-csv $ReportName -NoTypeInformation
+
+write-host "
+Complete
+
+File Location: $Reportname
+"
+
+
+#########################################
+#
+#     Below are some examples
+#
+#########################################
+
+#Example: Get-ADOrganizationalUnit -Filter * -Properties *
+
+
+
+#Example of the ACL properties
+<#
+
+Example of the ACL properties
+
+ActiveDirectoryRights : ExtendedRight
+InheritanceType       : All
+ObjectType            : 00000000-ab09-4242-9e30-000000000000
+InheritedObjectType   : 00000000-0000-0000-0000-000000000000
+ObjectFlags           : ObjectAceTypePresent
+AccessControlType     : Allow
+IdentityReference     : CONTSO\Domain Admins
+IsInherited           : True
+InheritanceFlags      : ContainerInherit
+PropagationFlags      : None
+#>
+
+
+#Working on the abitly to scan multiple domains
+<#
+New-PSDrive -Name ADFAB -PSProvider ActiveDirectory -Server "servername.fabrikam.local" -Scope Global -root "//RootDSE/"
+Set-Location ADFAB:
+
+#Working on the abitly to scan multiple domains" add -server param to other functions:
+Get-ADOrganizationalUnit -Server contoso.com
+
+#>
