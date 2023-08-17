@@ -1,0 +1,20 @@
+$vCenter_IP = "x.x.x.x"
+
+$datatore = backups
+$esxi = get-cluster | get-vmhost | Sort-Object -Property CpuUsageMhz -Descending | Select-Object -last 1
+$folder = "Backups"
+
+$vm_clone_list = @("VM1","VM2","VM3","VM4")
+
+if ($global:defaultviserver -eq $null){
+    write-host "Connecting to vCenter"
+	Connect-VIServer -server $vCenter_IP -Force}
+    
+#Connect-VIServer -server $vCenter_IP -Force
+ 
+foreach ($vm in $vm_clone_list){
+    $clone_name = "$($vm)-clone-$((Get-date).ToString('MMddyyyy'))"
+    new-vm -vm $vm -name $clone_name -VMHost $esxi -DiskStorageFormat thin -Location $folder -Datastore $datatore
+
+}
+
